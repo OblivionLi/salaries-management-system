@@ -70,9 +70,11 @@ jobs:
 
       - name: Wait for DB to be ready
         run: |
-          curl -sL https://github.com/vishnubob/wait-for-it/releases/download/v2.5.0/wait-for-it.sh -o wait-for-it.sh
-          chmod +x wait-for-it.sh
-          bash wait-for-it.sh db:5432 --timeout=60 --strict -- echo "Database is up!"
+          until pg_isready -U ${{ secrets.DB_USERNAME }} -d ${{ secrets.DB_NAME }}; do
+            echo "Waiting for PostgreSQL to be available..."
+            sleep 1
+          done
+          echo "PostgreSQL is available"
 
       - name: Build and Push Backend Image
         run: |
