@@ -68,18 +68,18 @@ jobs:
           sudo chmod +x /usr/local/bin/docker-compose
           docker-compose --version
 
-      - name: Wait for DB to be ready
-        run: |
-          until nc -z db 5432; do
-            echo "Waiting for PostgreSQL to be available..."
-            sleep 1
-          done
-          
-          until PGPASSWORD=${{ secrets.DB_PASSWORD }} psql -h db -U ${{ secrets.DB_USERNAME }} -d ${{ secrets.DB_NAME }} -c "SELECT 1;" > /dev/null 2>&1; do
-            echo "Waiting for PostgreSQL to be ready..."
-            sleep 1
-          done
-          echo "PostgreSQL is available"
+#      - name: Wait for DB to be ready
+#        run: |
+#          until nc -z db 5432; do
+#            echo "Waiting for PostgreSQL to be available..."
+#            sleep 1
+#          done
+#
+#          until PGPASSWORD=${{ secrets.DB_PASSWORD }} psql -h db -U ${{ secrets.DB_USERNAME }} -d ${{ secrets.DB_NAME }} -c "SELECT 1;" > /dev/null 2>&1; do
+#            echo "Waiting for PostgreSQL to be ready..."
+#            sleep 1
+#          done
+#          echo "PostgreSQL is available"
 
       - name: Build and Push Backend Image
         run: |
