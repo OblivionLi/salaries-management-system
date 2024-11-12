@@ -51,6 +51,7 @@ services:
       - app-network
     volumes:
       - ./backend/src/main/resources/data.sql:/app/data.sql
+    restart: on-failure
 
   db:
     image: postgres:17-alpine
