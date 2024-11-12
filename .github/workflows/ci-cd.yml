@@ -54,36 +54,6 @@ jobs:
           sudo chmod +x /usr/local/bin/docker-compose
           docker-compose --version
 
-      - name: Build and Tag Backend Image
-        run: |
-          # Get the current Git commit hash
-          BACKEND_VERSION=$(git rev-parse --short HEAD)
-          
-          # Build and tag the backend image
-          docker build -f ./backend/backend.Dockerfile -t minusemp892/myapp/backend:$BACKEND_VERSION ./backend
-          docker tag minusemp892/myapp/backend:$BACKEND_VERSION minusemp892/myapp/backend:latest
-
-      - name: Push Backend Image
-        run: |
-          # Push the backend images
-          docker push minusemp892/myapp/backend:$BACKEND_VERSION
-          docker push minusemp892/myapp/backend:latest
-
-      - name: Build and Tag Frontend Image
-        run: |
-          # Get the current Git commit hash
-          FRONTEND_VERSION=$(git rev-parse --short HEAD)
-          
-          # Build and tag the frontend image
-          docker build -f ./frontend/frontend.Dockerfile -t minusemp892/myapp/frontend:$FRONTEND_VERSION ./frontend
-          docker tag minusemp892/myapp/frontend:$FRONTEND_VERSION minusemp892/myapp/frontend:latest
-
-      - name: Push Frontend Image
-        run: |
-          # Push the frontend images
-          docker push minusemp892/myapp/frontend:$FRONTEND_VERSION
-          docker push minusemp892/myapp/frontend:latest
-
       - name: Run Docker Compose
         run: |
           docker-compose -f docker-compose.yml up -d --build
