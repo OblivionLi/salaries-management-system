@@ -65,6 +65,11 @@ jobs:
           SPRING_PROFILE: ${{ secrets.SPRING_PROFILE }}
           API_URL: ${{ secrets.API_URL }}
 
+      - name: Log running containers
+        run: |
+          echo "Listing all running containers:"
+          docker ps
+
       - name: Run Tests (Backend)
         run: |
           docker-compose -f docker-compose.yml exec backend mvn test
@@ -76,49 +81,3 @@ jobs:
       - name: Tear Down Docker Compose
         if: always()
         run: docker-compose -f docker-compose.yml down --volumes --remove-orphans
-
-#      - name: Wait for DB to be ready
-#        run: |
-#          until nc -z db 5432; do
-#            echo "Waiting for PostgreSQL to be available..."
-#            sleep 1
-#          done
-#
-#          until PGPASSWORD=${{ secrets.DB_PASSWORD }} psql -h db -U ${{ secrets.DB_USERNAME }} -d ${{ secrets.DB_NAME }} -c "SELECT 1;" > /dev/null 2>&1; do
-#            echo "Waiting for PostgreSQL to be ready..."
-#            sleep 1
-#          done
-#          echo "PostgreSQL is available"
-
-#      - name: Build and Push Backend Image
-#        run: |
-#          docker build -f ./backend/backend.Dockerfile -t minusemp892/myapp/backend:latest ./backend
-#          docker push minusemp892/myapp/backend:latest
-#
-#      - name: Build and Push Frontend Image
-#        run: |
-#          docker build -f ./frontend/frontend.Dockerfile -t minusemp892/myapp/frontend:latest ./frontend
-#          docker push minusemp892/myapp/frontend:latest
-#
-#      - name: Run Docker Compose
-#        run: |
-#          docker-compose -f docker-compose.yml up -d --build
-#          docker-compose -f docker-compose.yml ps
-#        env:
-#          DB_NAME: ${{ secrets.DB_NAME }}
-#          DB_USERNAME: ${{ secrets.DB_USERNAME }}
-#          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-#          SPRING_PROFILE: ${{ secrets.SPRING_PROFILE }}
-#          API_URL: ${{ secrets.API_URL }}
-#
-#      - name: Run Tests (Backend)
-#        run: |
-#          docker-compose -f docker-compose.yml exec backend mvn test
-#
-#      - name: Run Tests (Frontend)
-#        run: |
-#          docker-compose -f docker-compose.yml exec frontend npm test -- --watchAll=false
-#
-#      - name: Tear Down Docker Compose
-#        if: always()
-#        run: docker-compose -f docker-compose.yml down --volumes --remove-orphans
