@@ -9,6 +9,8 @@ RUN npm ci
 
 COPY . .
 
+RUN chmod -R 755 /app
+
 RUN npm run build
 
 FROM nginx:alpine
