@@ -44,22 +44,22 @@ jobs:
           echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
           echo "SPRING_PROFILE=${{ secrets.SPRING_PROFILE }}" >> .env
           echo "API_URL=${{ secrets.API_URL }}" >> .env
-          
 
       - name: Build and test
         working-directory: .
         run: |
-          docker-compose build
-          docker-compose up -d
+          docker compose build
+          docker compose up -d
           sleep 30  # Give services time to fully start
           
           # Run tests
-          docker-compose exec -T backend mvn test
-          docker-compose exec -T frontend npm test -- --watchAll=false
+          docker compose exec -T backend mvn test
+          docker compose exec -T frontend npm test -- --watchAll=false
 
       - name: Cleanup
         if: always()
-        run: docker-compose down --volumes --remove-orphans
+        working-directory: .
+        run: docker compose down --volumes --remove-orphans
 
 #      - name: Set up Docker Buildx
 #        uses: docker/setup-buildx-action@v1
