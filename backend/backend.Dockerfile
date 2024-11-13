@@ -12,8 +12,8 @@ RUN mvn dependency:go-offline
 
 COPY src ./src
 
-RUN mvn -X test
-RUN mvn package -DskipTests
+RUN mvn test
+RUN mvn package
 
 FROM openjdk:21-slim
 

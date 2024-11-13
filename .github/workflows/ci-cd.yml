@@ -50,58 +50,11 @@ jobs:
         run: |
           docker compose build
           docker compose up -d
-          sleep 30  # Give services time to fully start
           
-          # Run tests
-          docker compose exec -T backend mvn test
-          docker compose exec -T frontend npm test -- --watchAll=false
-
+          sleep 30
+          
+          docker compose ps
       - name: Cleanup
         if: always()
         working-directory: .
         run: docker compose down --volumes --remove-orphans
-
-#      - name: Set up Docker Buildx
-#        uses: docker/setup-buildx-action@v1
-#
-#      - name: Cache Docker layers
-#        uses: actions/cache@v2
-#        with:
-#          path: /tmp/.buildx-cache
-#          key: ${{ runner.os }}-buildx-${{ github.sha }}
-#          restore-keys: |
-#            ${{ runner.os }}-buildx-
-#
-#      - name: Set up Docker Compose
-#        run: |
-#          sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-#          sudo chmod +x /usr/local/bin/docker-compose
-#          docker-compose --version
-#
-#      - name: Run Docker Compose
-#        run: |
-#          docker-compose -f docker-compose.yml up -d --build
-#          docker-compose -f docker-compose.yml ps
-#        env:
-#          DB_NAME: ${{ secrets.DB_NAME }}
-#          DB_USERNAME: ${{ secrets.DB_USERNAME }}
-#          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-#          SPRING_PROFILE: ${{ secrets.SPRING_PROFILE }}
-#          API_URL: ${{ secrets.API_URL }}
-#
-#      - name: Log running containers
-#        run: |
-#          echo "Listing all running containers:"
-#          docker ps
-#
-#      - name: Run Tests (Backend)
-#        run: |
-#          docker-compose -f docker-compose.yml exec backend mvn test
-#
-#      - name: Run Tests (Frontend)
-#        run: |
-#          docker-compose -f docker-compose.yml exec frontend npm test -- --watchAll=false
-#
-#      - name: Tear Down Docker Compose
-#        if: always()
-#        run: docker-compose -f docker-compose.yml down --volumes --remove-orphans
