@@ -1,5 +1,6 @@
 package com.balaur.backend.services;
 
+import com.balaur.backend.kafka.SalaryKafkaProducer;
 import com.balaur.backend.models.Salary;
 import com.balaur.backend.repositories.SalaryRepository;
 import com.balaur.backend.requests.SalaryRequest;
@@ -29,6 +30,9 @@ class SalaryServiceTest {
 
     @Mock
     private SalaryRepository salaryRepository;
+
+    @Mock
+    private SalaryKafkaProducer salaryKafkaProducer;
 
     @InjectMocks
     private SalaryService salaryService;
@@ -81,6 +85,7 @@ class SalaryServiceTest {
     @Test
     void addSalary_WhenSuccessful_ReturnsCreatedResponse() {
         when(salaryRepository.save(any(Salary.class))).thenReturn(testSalary);
+        doNothing().when(salaryKafkaProducer).sendSalaryMessage(testSalary);
 
         ResponseEntity<SalaryResponse> response = salaryService.addSalary(testSalaryRequest);
 
@@ -106,6 +111,7 @@ class SalaryServiceTest {
     void editSalary_WhenSalaryExists_ReturnsCreatedResponse() {
         when(salaryRepository.findById(1L)).thenReturn(Optional.of(testSalary));
         when(salaryRepository.save(any(Salary.class))).thenReturn(testSalary);
+        doNothing().when(salaryKafkaProducer).sendSalaryMessage(testSalary);
 
         ResponseEntity<SalaryResponse> response = salaryService.editSalary(1L, testSalaryRequest);
 

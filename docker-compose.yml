@@ -31,6 +31,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE}
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/${DB_NAME}
@@ -40,6 +42,9 @@ services:
       - SPRING_SQL_INIT_MODE=always
       - SPRING_SQL_INIT_PLATFORM=postgresql
       - SPRING_JPA_HIBERNATE_DDL-AUTO=none
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SPRING_KAFKA_CONSUMER_GROUP_ID=${KAFKA_CONSUMER_GROUP_ID:-my-group}
+      - SPRING_KAFKA_CONSUMER_AUTO_OFFSET_RESET=earliest
     env_file:
       - .env
     deploy:
@@ -55,7 +60,6 @@ services:
 
   db:
     image: postgres:17-alpine
-    container_name: postgresql_backend_1
     ports:
       - "5432:5432"
     environment:
@@ -74,8 +78,51 @@ services:
     networks:
       - app-network
     restart: always
+
+  kafka:
+    image: bitnami/kafka:3.9.0
+    environment:
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+    ports:
+      - "29092:29092"
+    volumes:
+      - kafka-persistence:/bitnami/kafka
+    networks:
+      - app-network
+    depends_on:
+      - zookeeper
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: always
+
+  zookeeper:
+    image: zookeeper:3.8.4
+    hostname: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_SERVERS: server.1=zoo1:2888:3888;2181
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc zookeeper 2181 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
 volumes:
   postgres_data:
+  kafka-persistence:
 
 networks:
   app-network:

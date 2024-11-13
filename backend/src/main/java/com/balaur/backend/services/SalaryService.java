@@ -1,5 +1,6 @@
 package com.balaur.backend.services;
 
+import com.balaur.backend.kafka.SalaryKafkaProducer;
 import com.balaur.backend.models.Salary;
 import com.balaur.backend.repositories.SalaryRepository;
 import com.balaur.backend.requests.SalaryRequest;
@@ -25,6 +26,7 @@ public class SalaryService {
 
     private final SalaryRepository salaryRepository;
     private final String version = "v1";
+    private final SalaryKafkaProducer salaryKafkaProducer;
 
     public ResponseEntity<SalariesResponseWrapper> getSalaries() {
         List<Salary> salariesList = salaryRepository.findAll();
@@ -121,6 +123,8 @@ public class SalaryService {
         try {
             log.info("[SalaryService.getSalaryResponseResponseEntity] Trying to save salary.");
             Salary savedSalary = salaryRepository.save(salaryToEdit);
+
+            salaryKafkaProducer.sendSalaryMessage(savedSalary);
             return ResponseEntity.status(HttpStatus.CREATED).body(buildSalaryResponse(savedSalary, "add"));
         } catch (Exception e) {
             log.error("[SalaryService.getSalaryResponseResponseEntity] Something happened while trying to save salary");

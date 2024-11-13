@@ -44,6 +44,7 @@ jobs:
           echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
           echo "SPRING_PROFILE=${{ secrets.SPRING_PROFILE }}" >> .env
           echo "API_URL=${{ secrets.API_URL }}" >> .env
+          echo "KAFKA_CONSUMER_GROUP_ID=${{ secrets.KAFKA_CONSUMER_GROUP_ID }}" >> .env
 
       - name: Build and test
         working-directory: .
