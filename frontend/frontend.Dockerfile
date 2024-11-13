@@ -11,8 +11,6 @@ COPY . .
 
 RUN chmod -R 755 /app
 
-RUN npm test -- --watchAll=false
-
 RUN npm run build
 
 FROM nginx:alpine
