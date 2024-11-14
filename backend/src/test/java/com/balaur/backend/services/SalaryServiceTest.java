@@ -4,6 +4,8 @@ import com.balaur.backend.kafka.SalaryKafkaProducer;
 import com.balaur.backend.models.Salary;
 import com.balaur.backend.repositories.SalaryRepository;
 import com.balaur.backend.requests.SalaryRequest;
+import com.balaur.backend.responses.Link;
+import com.balaur.backend.responses.LinkUtils;
 import com.balaur.backend.responses.SalariesResponseWrapper;
 import com.balaur.backend.responses.SalaryResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,6 +14,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -34,11 +38,19 @@ class SalaryServiceTest {
     @Mock
     private SalaryKafkaProducer salaryKafkaProducer;
 
+    @Mock
+    private RedisTemplate<String, Object> redisTemplate;
+
+    @Mock
+    private ValueOperations<String, Object> valueOperations;
+
     @InjectMocks
     private SalaryService salaryService;
 
     private Salary testSalary;
     private SalaryRequest testSalaryRequest;
+    private final String SALARY_CACHE_KEY = "salaries";
+    private final String version = "v1";
 
     @BeforeEach
     void setUp() {
@@ -52,11 +64,49 @@ class SalaryServiceTest {
         testSalaryRequest.setSalary(BigDecimal.valueOf(5000));
         testSalaryRequest.setSalaryDate(LocalDateTime.now());
         testSalaryRequest.setEmployee("John Doe");
+
+        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
 
     @Test
-    void getSalaries_WhenSalariesExist_ReturnsOkResponse() {
+    void getSalaries_WhenSalariesExistInCache_ReturnsOkResponse() {
+        // Wrap the salary in a SalariesResponseWrapper
         List<Salary> salaryList = List.of(testSalary);
+        List<SalaryResponse> salaryResponses = salaryList.stream()
+                .map(salary -> SalaryResponse.builder()
+                        .salaryId(salary.getId())
+                        .salary(salary.getSalary())
+                        .salaryDate(salary.getSalaryDate())
+                        .employee(salary.getEmployee())
+                        .message(null)
+                        .links(LinkUtils.generateLinks("get", version, String.valueOf(salary.getId())))
+                        .build())
+                .toList();
+
+        SalariesResponseWrapper cachedWrapper = new SalariesResponseWrapper(salaryResponses, List.of(new Link("self", "/api/" + version + "/salaries", "GET", version)));
+
+        // Mock Redis to return the cached SalariesResponseWrapper
+        when(valueOperations.get(SALARY_CACHE_KEY)).thenReturn(cachedWrapper);
+
+        // Call the method
+        ResponseEntity<SalariesResponseWrapper> response = salaryService.getSalaries();
+
+        // Verify the response
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().getData().size());
+        assertEquals(testSalary.getId(), response.getBody().getData().getFirst().getSalaryId());
+
+        // Verify cache retrieval
+        verify(valueOperations).get(SALARY_CACHE_KEY);
+        // Verify no database call
+        verify(salaryRepository, never()).findAll();
+    }
+
+    @Test
+    void getSalaries_WhenSalariesExistInDatabase_ReturnsOkResponse() {
+        List<Salary> salaryList = List.of(testSalary);
+        when(valueOperations.get(SALARY_CACHE_KEY)).thenReturn(null);
         when(salaryRepository.findAll()).thenReturn(salaryList);
 
         ResponseEntity<SalariesResponseWrapper> response = salaryService.getSalaries();
@@ -70,6 +120,7 @@ class SalaryServiceTest {
 
     @Test
     void getSalaries_WhenNoSalariesExist_ReturnsNotFoundResponse() {
+        when(valueOperations.get(SALARY_CACHE_KEY)).thenReturn(null);
         when(salaryRepository.findAll()).thenReturn(new ArrayList<>());
 
         ResponseEntity<SalariesResponseWrapper> response = salaryService.getSalaries();
