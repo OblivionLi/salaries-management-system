@@ -8,7 +8,7 @@ import org.springframework.core.env.Environment;
 
 
 @Slf4j
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.balaur.backend")
 public class BackendApplication {
 //    private static Environment env;
 //

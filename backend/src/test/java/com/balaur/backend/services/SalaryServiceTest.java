@@ -8,6 +8,7 @@ import com.balaur.backend.responses.Link;
 import com.balaur.backend.responses.LinkUtils;
 import com.balaur.backend.responses.SalariesResponseWrapper;
 import com.balaur.backend.responses.SalaryResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +45,9 @@ class SalaryServiceTest {
     @Mock
     private ValueOperations<String, Object> valueOperations;
 
+    @Mock
+    private ObjectMapper objectMapper;
+
     @InjectMocks
     private SalaryService salaryService;
 
@@ -70,7 +74,6 @@ class SalaryServiceTest {
 
     @Test
     void getSalaries_WhenSalariesExistInCache_ReturnsOkResponse() {
-        // Wrap the salary in a SalariesResponseWrapper
         List<Salary> salaryList = List.of(testSalary);
         List<SalaryResponse> salaryResponses = salaryList.stream()
                 .map(salary -> SalaryResponse.builder()
@@ -85,22 +88,20 @@ class SalaryServiceTest {
 
         SalariesResponseWrapper cachedWrapper = new SalariesResponseWrapper(salaryResponses, List.of(new Link("self", "/api/" + version + "/salaries", "GET", version)));
 
-        // Mock Redis to return the cached SalariesResponseWrapper
         when(valueOperations.get(SALARY_CACHE_KEY)).thenReturn(cachedWrapper);
+        when(objectMapper.convertValue(any(), eq(SalariesResponseWrapper.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
-        // Call the method
         ResponseEntity<SalariesResponseWrapper> response = salaryService.getSalaries();
 
-        // Verify the response
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().getData().size());
         assertEquals(testSalary.getId(), response.getBody().getData().getFirst().getSalaryId());
 
-        // Verify cache retrieval
         verify(valueOperations).get(SALARY_CACHE_KEY);
-        // Verify no database call
         verify(salaryRepository, never()).findAll();
+        verify(redisTemplate, times(1)).opsForValue();
     }
 
     @Test

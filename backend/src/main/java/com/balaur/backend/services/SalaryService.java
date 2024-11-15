@@ -12,8 +12,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,102 +31,89 @@ public class SalaryService {
     private final String version = "v1";
     private final SalaryKafkaProducer salaryKafkaProducer;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final ObjectMapper objectMapper; // Inject ObjectMapper to log as JSON
+    private final ObjectMapper objectMapper;
 
     private final String SALARY_CACHE_KEY = "salaries";
     private static final Duration CACHE_TTL = Duration.ofMinutes(30);
 
-    @Cacheable(value = SALARY_CACHE_KEY)
     public ResponseEntity<SalariesResponseWrapper> getSalaries() {
-        SalariesResponseWrapper cachedResponse = (SalariesResponseWrapper) redisTemplate.opsForValue().get(SALARY_CACHE_KEY);
-        List<Link> mainLinks = List.of(new Link("self", "/api/" + version + "/salaries", "GET", version));
-
-        if (cachedResponse != null) {
-            try {
-                // Log the cached response as JSON for better readability
-                String cachedResponseJson = objectMapper.writeValueAsString(cachedResponse);
-                log.info("[SalaryService.getSalaries] Salaries found in Redis cache: {}", cachedResponseJson);
-
-            } catch (Exception e) {
-                log.error("[SalaryService.getSalaries] Error logging cached response: {}", e.getMessage());
-            }
-
-            log.info("[SalaryService.getSalaries] Salaries found in Redis cache.");
-            return ResponseEntity.ok(cachedResponse);
+        SalariesResponseWrapper salariesResponseWrapper = getSalariesResponseFromRedisCache();
+        if (salariesResponseWrapper != null) {
+            return ResponseEntity.status(HttpStatus.OK).body(salariesResponseWrapper);
         }
 
+        List<Link> mainLinks = List.of(new Link("self", "/api/" + version + "/salaries", "GET", version));
+        salariesResponseWrapper = getSalariesResponseFromDB(mainLinks);
+        if (salariesResponseWrapper != null) {
+            saveSalariesResponseToRedisCache(salariesResponseWrapper);
+            return ResponseEntity.status(HttpStatus.OK).body(salariesResponseWrapper);
+        }
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(getSalariesResponseForEmptyList(mainLinks));
+    }
+
+    private SalariesResponseWrapper getSalariesResponseForEmptyList(List<Link> mainLinks) {
         List<SalaryResponse> salariesResponses = new ArrayList<>();
+        salariesResponses.add(SalaryResponse.builder()
+                .salaryId(-1L)
+                .salary(BigDecimal.valueOf(0))
+                .salaryDate(null)
+                .employee("-")
+                .message("Couldn't find any salary. Add a salary first.")
+                .links(List.of(new Link("self", "/api/" + version + "/salaries", "POST", version)))
+                .build()
+        );
+
+        log.warn("[SalaryService.getSalariesResponseForEmptyList] Couldn't find any salary.");
+        return new SalariesResponseWrapper(salariesResponses, mainLinks);
+    }
+
+    private void saveSalariesResponseToRedisCache(SalariesResponseWrapper salariesResponseWrapper) {
+        log.info("[SalaryService.saveSalariesResponseToRedisCache] Saving response to redis cache: {}", salariesResponseWrapper.toString());
+        redisTemplate.opsForValue().set(SALARY_CACHE_KEY, salariesResponseWrapper, CACHE_TTL);
+    }
+
+    private SalariesResponseWrapper getSalariesResponseFromRedisCache() {
+        log.info("[SalaryService.getSalariesResponseFromRedisCache] Attempting to retrieve data from redis cache.");
+
+        if (redisTemplate.hasKey(SALARY_CACHE_KEY) == null) {
+            log.info("[SalaryService.getSalariesResponseFromRedisCache] No data found in redis cache.");
+            return null;
+        }
+
+        try {
+            Object cachedValue = redisTemplate.opsForValue().get(SALARY_CACHE_KEY);
+
+            if (cachedValue == null) {
+                log.info("[SalaryService.getSalariesResponseFromRedisCache] No data found in redis cache.");
+                return null;
+            }
+
+            log.info("[SalaryService.getSalariesResponseFromRedisCache] Data found in redis cache. Beginning deserialization. {}", cachedValue);
+            return objectMapper.convertValue(cachedValue, SalariesResponseWrapper.class);
+        } catch (Exception e) {
+            log.error("[SalaryService.getSalariesResponseFromRedisCache] Error deserializing cache data: ", e);
+            return null;
+        }
+    }
+
+    private SalariesResponseWrapper getSalariesResponseFromDB(List<Link> mainLinks) {
         List<Salary> salariesList;
 
         try {
             salariesList = salaryRepository.findAll();
-            if (salariesList.isEmpty()) {
-                salariesResponses.add(SalaryResponse.builder()
-                        .salaryId(-1L)
-                        .salary(BigDecimal.valueOf(0))
-                        .salaryDate(null)
-                        .employee("-")
-                        .message("Couldn't find any salary. Add a salary first.")
-                        .links(List.of(new Link("self", "/api/" + version + "/salaries", "POST", version)))
-                        .build()
-                );
-
-                log.warn("[SalaryService.getSalaries] Couldn't find any salary.");
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                        new SalariesResponseWrapper(salariesResponses, mainLinks)
-                );
-            }
         } catch (Exception e) {
-            log.error("[SalaryService.getSalaries] Error retrieving salaries: {}", e.getMessage());
+            log.error("[SalaryService.getSalariesResponseFromDB] Error retrieving salaries: {}", e.getMessage());
             throw new RuntimeException("Error retrieving salaries", e);
         }
 
-        log.info("[SalaryService.getSalaries] Salaries found.");
-        SalariesResponseWrapper salariesResponseWrapper = buildSalariesResponseWrapper(salariesList, mainLinks);
+        if (salariesList.isEmpty()) {
+            log.info("[SalaryService.getSalariesResponseFromDB] No data found in database.");
+            return null;
+        }
 
-        redisTemplate.opsForValue().set(SALARY_CACHE_KEY, salariesResponseWrapper, CACHE_TTL);
-        log.info("[SalaryService.getSalaries] Salaries cached in Redis.");
-
-        return ResponseEntity.status(HttpStatus.OK).body(salariesResponseWrapper);
-
-//        List<Salary> salariesList = (List<Salary>) redisTemplate.opsForValue().get(SALARY_CACHE_KEY);
-//        List<Link> mainLinks = List.of(new Link("self", "/api/" + version + "/salaries", "GET", version));
-//
-//        if (salariesList != null) {
-//            log.info("[SalaryService.getSalaries] Salaries found in Redis cache.");
-//            return ResponseEntity.status(HttpStatus.OK).body(buildSalariesResponseWrapper(salariesList, mainLinks));
-//        }
-//
-//        List<SalaryResponse> salariesResponses = new ArrayList<>();
-//
-//        try {
-//            salariesList = salaryRepository.findAll();
-//            if (salariesList.isEmpty()) {
-//                salariesResponses.add(SalaryResponse.builder()
-//                        .salaryId(-1L)
-//                        .salary(BigDecimal.valueOf(0))
-//                        .salaryDate(null)
-//                        .employee("-")
-//                        .message("Couldn't find any salary. Add a salary first.")
-//                        .links(List.of(new Link("self", "/api/" + version + "/salaries", "POST", version)))
-//                        .build()
-//                );
-//
-//                log.warn("[SalaryService.getSalaries] Couldn't find any salary.");
-//                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-//                        new SalariesResponseWrapper(salariesResponses, mainLinks)
-//                );
-//            }
-//        } catch (Exception e) {
-//            log.error("[SalaryService.getSalaries] Error retrieving salaries: {}", e.getMessage());
-//            throw new RuntimeException("Error retrieving salaries", e);
-//        }
-//
-//        log.info("[SalaryService.getSalaries] Salaries found.");
-//        SalariesResponseWrapper salariesResponseWrapper = buildSalariesResponseWrapper(salariesList, mainLinks);
-//        redisTemplate.opsForValue().set(SALARY_CACHE_KEY, salariesResponseWrapper, CACHE_TTL);
-//        log.info("[SalaryService.getSalaries] Salaries cached in Redis.");
-//        return ResponseEntity.status(HttpStatus.OK).body(salariesResponseWrapper);
+        log.info("[SalaryService.getSalariesResponseFromDB] Data found in database. Beginning building the response.");
+        return buildSalariesResponseWrapper(salariesList, mainLinks);
     }
 
     private SalariesResponseWrapper buildSalariesResponseWrapper(List<Salary> salariesList, List<Link> mainLinks) {
@@ -198,7 +183,6 @@ public class SalaryService {
         return getSalaryResponseEntity(salaryRequest, salaryToEdit);
     }
 
-    @CacheEvict(value = SALARY_CACHE_KEY, allEntries = true)
     public ResponseEntity<SalaryResponse> getSalaryResponseEntity(@Valid SalaryRequest salaryRequest, Salary salaryToEdit) {
         salaryToEdit.setSalary(salaryRequest.getSalary());
         salaryToEdit.setSalaryDate(salaryRequest.getSalaryDate());
@@ -217,7 +201,6 @@ public class SalaryService {
         }
     }
 
-    @CacheEvict(value = SALARY_CACHE_KEY, allEntries = true)
     public ResponseEntity<SalariesResponseWrapper> deleteSalary(Long id) {
         Optional<Salary> salaryOptional;
         List<Link> mainLinks = List.of(new Link("self", "/salaries/delete/" + id, "DELETE", version));
