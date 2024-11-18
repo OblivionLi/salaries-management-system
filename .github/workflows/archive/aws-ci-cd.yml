@@ -1,0 +1,58 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-22.04
+
+    env:
+      AWS_REGION: eu-central-1
+      ECR_REPOSITORY_BACKEND: 412381753997.dkr.ecr.eu-central-1.amazonaws.com/oblivionli/backend
+      ECR_REPOSITORY_FRONTEND: 412381753997.dkr.ecr.eu-central-1.amazonaws.com/oblivionli/frontend
+      ECS_CLUSTER: salaries-management-cluster
+      ECS_SERVICE_BACKEND: backend-service
+      ECS_SERVICE_FRONTEND: frontend-service
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and push images
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build and push backend
+          docker build -t $ECR_REPOSITORY_BACKEND:$IMAGE_TAG -f backend.Dockerfile ./backend
+          docker push $ECR_REPOSITORY_BACKEND:$IMAGE_TAG
+          
+          # Build and push frontend
+          docker build -t $ECR_REPOSITORY_FRONTEND:$IMAGE_TAG -f frontend.Dockerfile ./frontend
+          docker push $ECR_REPOSITORY_FRONTEND:$IMAGE_TAG
+          
+          # Update task definition files
+          sed -i "s|BACKEND_IMAGE|$ECR_REPOSITORY_BACKEND:$IMAGE_TAG|g" aws/task-definitions/backend.json
+          sed -i "s|FRONTEND_IMAGE|$ECR_REPOSITORY_FRONTEND:$IMAGE_TAG|g" aws/task-definitions/frontend.json
+
+      - name: Update ECS services
+        run: |
+          aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE_BACKEND --force-new-deployment
+          aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE_FRONTEND --force-new-deployment
