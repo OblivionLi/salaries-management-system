@@ -2,8 +2,8 @@
 
 This project is a simple CRUD (Create, Read, Update, Delete) application built with **Java Spring Boot** on the backend
 and **React** on the frontend. While it’s not a complex application, it is designed to demonstrate practical skills in
-integrating various tools and technologies, including **Redis**, **Kafka/Zookeeper**, **PostgreSQL**, **Docker**, *
-*Docker Compose**, **CI/CD pipelines**, and **AWS**.
+integrating various tools and technologies, including **Redis**, **Kafka/Zookeeper**, **PostgreSQL**, **Docker**, 
+**Docker Compose**, **CI/CD pipelines**, and **AWS**.
 
 ---
 
