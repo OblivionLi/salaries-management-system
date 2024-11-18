@@ -1,0 +1,98 @@
+{
+	"info": {
+		"_postman_id": "f4c12c94-1e7f-4f95-99cc-0872992fc729",
+		"name": "Salaries Management",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "13786987"
+	},
+	"item": [
+		{
+			"name": "Get Salaries",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url}}/",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Add Salary",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"employee\": \"Liviu Andrei 3\",\r\n    \"salary\": 5000.00,\r\n    \"salaryDate\": \"2024-11-08T12:00:00\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url}}/add",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"add"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Edit Salary",
+			"request": {
+				"method": "PATCH",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"employee\": \"Liviu Andrei\",\r\n    \"salary\": 8000.00,\r\n    \"salaryDate\": \"2024-11-08T12:00:00\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url}}/edit/1",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"edit",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete Salary",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{url}}/delete/1",
+					"host": [
+						"{{url}}"
+					],
+					"path": [
+						"delete",
+						"1"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

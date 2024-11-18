@@ -134,11 +134,7 @@ docker-compose down --volumes --rmi all --remove-orphans
 
 ## CI/CD Configration
 
-This project includes a **GitHub Actions** pipeline that can demonstrate deployment to **AWS**. While AWS setup isn't
-included
-in this repository, the pipeline can be extended with appropriate configurations for services like **ECS**, **S3**, or *
-*Elastic
-Beanstalk**.
+* This project includes a **GitHub Actions** pipeline that can demonstrate deployment to **AWS**. While AWS setup isn't included in this repository, the pipeline can be extended with appropriate configurations for services like **ECS**, **S3**, or **Elastic Beanstalk**.
 ---
 ## Future Improvements
 While this project is designed as a simple showcase, it can be extended with:
