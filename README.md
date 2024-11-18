@@ -46,6 +46,7 @@ Ensure you have the following installed:
 ### Environment Variables
 
 Before starting, create a `.env` file at the project root with the following keys:
+##### might need to update `docker-compose.yml` file to use env. vars instead of github secrets vars.
 
 ```env
 DB_NAME=myapp_dev
